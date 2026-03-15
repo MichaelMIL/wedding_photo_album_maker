@@ -20,16 +20,64 @@ BASE_DIR = Path(__file__).resolve().parent
 PHOTOS_DIR = Path(os.environ.get("PHOTOS_DIR", BASE_DIR / "photos"))
 SELECTIONS_DIR = BASE_DIR / "selections"
 OUTPUT_DIR = BASE_DIR / "output"
-
-# Album IDs and their JSON filenames
-ALBUMS = [
-    {"id": "us", "label": "Us"},
-    {"id": "my_parents", "label": "My parents"},
-    {"id": "wife_father", "label": "Wife's father"},
-    {"id": "wife_mother", "label": "Wife's mother"},
-]
-ALBUM_IDS = [a["id"] for a in ALBUMS]
+CONFIG_DIR = BASE_DIR / "config"
+ALBUMS_CONFIG_FILE = CONFIG_DIR / "albums.json"
 DISCARDED_FILE = "discarded.json"
+
+DEFAULT_ALBUMS = [
+    {"id": "us", "label": "Us", "color": "#5a9b6e", "key": "1"},
+    {"id": "my_parents", "label": "My parents", "color": "#5b7cba", "key": "2"},
+    {"id": "wife_father", "label": "Wife's father", "color": "#9b6b9b", "key": "3"},
+    {"id": "wife_mother", "label": "Wife's mother", "color": "#3a9b8e", "key": "4"},
+]
+
+
+def _slug(s: str) -> str:
+    """Filesystem-safe id from label."""
+    return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_") or "album"
+
+
+def get_albums() -> list[dict]:
+    """Load albums from config file, or return defaults."""
+    if not ALBUMS_CONFIG_FILE.exists():
+        return list(DEFAULT_ALBUMS)
+    try:
+        data = json.loads(ALBUMS_CONFIG_FILE.read_text(encoding="utf-8"))
+        albums = data.get("albums", [])
+        if not albums:
+            return list(DEFAULT_ALBUMS)
+        # Ensure each has id, label, color, key
+        out = []
+        for i, a in enumerate(albums):
+            aid = a.get("id") or _slug(a.get("label", "")) or f"album_{i}"
+            out.append({
+                "id": aid,
+                "label": a.get("label", aid),
+                "color": a.get("color", "#888888"),
+                "key": str(a.get("key", str(i + 1)))[:1],
+            })
+        return out
+    except Exception:
+        return list(DEFAULT_ALBUMS)
+
+
+def save_albums(albums: list[dict]) -> None:
+    """Persist albums config."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    # Normalize: ensure id from label if missing
+    out = []
+    for i, a in enumerate(albums):
+        label = (a.get("label") or "").strip() or f"Album {i + 1}"
+        aid = (a.get("id") or _slug(label)) or f"album_{i}"
+        out.append({
+            "id": aid,
+            "label": label,
+            "color": a.get("color", "#888888"),
+            "key": str(a.get("key", str(i + 1)))[:1],
+        })
+    ALBUMS_CONFIG_FILE.write_text(
+        json.dumps({"albums": out}, indent=2), encoding="utf-8"
+    )
 
 # Source "" (root) is stored as this in selections dir
 ROOT_SOURCE_KEY = "_root"
@@ -127,9 +175,10 @@ def load_selections(source: str = "") -> dict:
     """Load all album selections and discarded for the given source."""
     sel_dir = get_selections_dir(source)
     sel_dir.mkdir(parents=True, exist_ok=True)
-    out = {aid: [] for aid in ALBUM_IDS}
+    album_ids = [a["id"] for a in get_albums()]
+    out = {aid: [] for aid in album_ids}
     out["discarded"] = []
-    for aid in ALBUM_IDS:
+    for aid in album_ids:
         p = sel_dir / f"album_{aid}.json"
         if p.exists():
             try:
@@ -173,7 +222,8 @@ def copy_to_dirs(source: str = "", output_base: Path | None = None) -> dict:
     source_slug = source if source else ROOT_SOURCE_KEY
     out_base = out_base / source_slug
     result = {"output_dir": str(out_base), "copied": {}}
-    for aid in ALBUM_IDS:
+    album_ids = [a["id"] for a in get_albums()]
+    for aid in album_ids:
         filenames = sel.get(aid) or []
         if not filenames:
             result["copied"][aid] = 0
@@ -193,7 +243,24 @@ def copy_to_dirs(source: str = "", output_base: Path | None = None) -> dict:
 
 @app.route("/api/albums")
 def albums():
-    return jsonify(ALBUMS)
+    return jsonify(get_albums())
+
+
+@app.route("/api/settings/albums", methods=["GET"])
+def get_settings_albums():
+    return jsonify(get_albums())
+
+
+@app.route("/api/settings/albums", methods=["POST"])
+def save_settings_albums():
+    data = request.get_json()
+    if not data or "albums" not in data:
+        return jsonify({"error": "albums array required"}), 400
+    try:
+        save_albums(data["albums"])
+        return jsonify(get_albums())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 @app.route("/api/sources")
@@ -228,7 +295,8 @@ def update_selections():
     if not data:
         return jsonify({"error": "JSON body required"}), 400
     source = data.pop("source", "")
-    for aid in ALBUM_IDS:
+    album_ids = [a["id"] for a in get_albums()]
+    for aid in album_ids:
         if aid in data and isinstance(data[aid], list):
             save_album_selection(source, aid, data[aid])
     if "discarded" in data and isinstance(data["discarded"], list):
