@@ -127,6 +127,35 @@
       border-bottom-color: var(--accent);
     }
     .tabs button .count { opacity: 0.8; font-size: 0.85em; }
+    .view-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 0.5rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .view-toggle {
+      display: flex;
+      gap: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .view-toggle button {
+      padding: 0.4rem 0.9rem;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .view-toggle button.active {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .view-toggle button:not(.active):hover { color: var(--text); }
     main {
       flex: 1;
       display: flex;
@@ -246,6 +275,71 @@
       font-size: 1rem;
     }
     .nav-buttons button:hover { background: rgba(255,255,255,0.08); }
+    .content-preview {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .content-grid {
+      display: none;
+      width: 100%;
+      max-width: 90vw;
+      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+    .content-grid.visible { display: grid; }
+    .content-grid .grid-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: visible;
+      border: 2px solid transparent;
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .content-grid .grid-item:hover { border-color: rgba(255,255,255,0.3); }
+    .content-grid .grid-item.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .content-grid .grid-item .grid-img-wrap { width: 100%; height: 100%; border-radius: 6px; overflow: hidden; }
+    .content-grid .grid-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .content-list {
+      display: none;
+      width: 100%;
+      max-width: 90vw;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .content-list.visible { display: flex; }
+    .content-list .list-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.4rem 0.6rem;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .content-list .list-item:hover { border-color: rgba(255,255,255,0.2); }
+    .content-list .list-item.active { border-color: var(--accent); }
+    .content-list .list-item .list-thumb {
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .content-list .list-item .list-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .content-list .list-item .list-info { flex: 1; min-width: 0; font-size: 0.9rem; color: var(--text); }
+    .content-list .list-item .list-info .list-filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .content-list .list-item .list-dots { display: flex; gap: 4px; }
+    .content-list .list-item .list-dots .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .content-list .list-item .list-dots .dot.album { background: var(--in-album); }
+    .content-list .list-item .list-dots .dot.discarded { background: var(--discard); }
+    .content-list .list-item .list-dots .dot.unviewed { background: #c9b336; }
     .shortcuts {
       margin-top: 1rem;
       font-size: 0.8rem;
@@ -333,7 +427,16 @@
     </div>
   </header>
   <nav class="tabs" id="tabs" aria-label="Albums"></nav>
+  <div class="view-bar">
+    <span class="view-label" style="font-size:0.85rem;color:var(--muted);">View:</span>
+    <div class="view-toggle">
+      <button type="button" data-view="grid">Grid</button>
+      <button type="button" data-view="list">List</button>
+      <button type="button" data-view="preview" class="active">Preview</button>
+    </div>
+  </div>
   <main>
+    <div class="content-preview" id="contentPreview">
     <div class="preview-wrap">
       <img id="preview" alt="Preview" style="display:none" />
       <div class="placeholder" id="placeholder">Put your wedding photos in the <code>photos</code> folder, then run the app with that path.</div>
@@ -341,6 +444,9 @@
     <div class="thumb-slider-wrap" id="thumbSliderWrap">
       <div class="thumb-slider" id="thumbSlider" aria-label="Photo thumbnails"></div>
     </div>
+    </div>
+    <div class="content-grid" id="contentGrid" aria-label="Grid view"></div>
+    <div class="content-list" id="contentList" aria-label="List view"></div>
     <div class="albums" id="albumButtons"></div>
     <div class="nav-buttons">
       <button type="button" id="prevBtn">← Previous</button>
@@ -372,6 +478,15 @@
     let albums = [];
     let selections = { discarded: [] };
     let activeTab = "all";
+    let viewByTab = {}; // { tabId: 'preview'|'grid'|'list' }, default 'preview'
+
+    function getViewMode() {
+      return viewByTab[activeTab] || "preview";
+    }
+
+    function setViewMode(mode) {
+      viewByTab[activeTab] = mode;
+    }
 
     async function fetchSources() {
       const r = await fetch(API + "/api/sources");
@@ -571,9 +686,101 @@
       if (activeEl) activeEl.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
     }
 
+    function renderViewToggle() {
+      const mode = getViewMode();
+      document.querySelectorAll(".view-toggle button").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.view === mode);
+      });
+      document.getElementById("contentPreview").style.display = mode === "preview" ? "flex" : "none";
+      document.getElementById("contentGrid").classList.toggle("visible", mode === "grid");
+      document.getElementById("contentList").classList.toggle("visible", mode === "list");
+    }
+
+    function renderContentGrid() {
+      const container = document.getElementById("contentGrid");
+      container.innerHTML = "";
+      if (!photos.length) return;
+      photos.forEach((p, i) => {
+        const status = getThumbStatus(p.filename);
+        const div = document.createElement("button");
+        div.type = "button";
+        div.className = "grid-item" + (i === index ? " active" : "");
+        div.setAttribute("aria-label", "Photo " + (i + 1) + ": " + p.filename);
+        const imgWrap = document.createElement("div");
+        imgWrap.className = "grid-img-wrap";
+        const img = document.createElement("img");
+        img.src = API + "/api/photo/" + encodeURIComponent(p.path);
+        img.alt = "";
+        img.loading = "lazy";
+        imgWrap.appendChild(img);
+        div.appendChild(imgWrap);
+        const dot = document.createElement("span");
+        dot.className = "thumb-status thumb-status--" + status;
+        dot.setAttribute("aria-hidden", "true");
+        div.appendChild(dot);
+        div.addEventListener("click", () => {
+          index = i;
+          render();
+        });
+        container.appendChild(div);
+      });
+      const activeEl = container.querySelector(".grid-item.active");
+      if (activeEl) activeEl.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    }
+
+    function renderContentList() {
+      const container = document.getElementById("contentList");
+      container.innerHTML = "";
+      if (!photos.length) return;
+      photos.forEach((p, i) => {
+        const status = getThumbStatus(p.filename);
+        const div = document.createElement("button");
+        div.type = "button";
+        div.className = "list-item" + (i === index ? " active" : "");
+        div.setAttribute("aria-label", "Photo " + (i + 1) + ": " + p.filename);
+        const thumb = document.createElement("div");
+        thumb.className = "list-thumb";
+        const img = document.createElement("img");
+        img.src = API + "/api/photo/" + encodeURIComponent(p.path);
+        img.alt = "";
+        img.loading = "lazy";
+        thumb.appendChild(img);
+        const info = document.createElement("div");
+        info.className = "list-info";
+        info.innerHTML = '<span class="list-filename">' + escapeHtml(p.filename) + "</span>";
+        const dots = document.createElement("div");
+        dots.className = "list-dots";
+        dots.innerHTML = '<span class="dot ' + status + '" aria-hidden="true"></span>';
+        div.appendChild(thumb);
+        div.appendChild(info);
+        div.appendChild(dots);
+        div.addEventListener("click", () => {
+          index = i;
+          render();
+        });
+        container.appendChild(div);
+      });
+      const activeEl = container.querySelector(".list-item.active");
+      if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
     function render() {
-      renderPreview();
-      renderThumbSlider();
+      const mode = getViewMode();
+      renderViewToggle();
+      if (mode === "preview") {
+        renderPreview();
+        renderThumbSlider();
+      } else if (mode === "grid") {
+        renderContentGrid();
+      } else {
+        renderContentList();
+      }
       renderAlbumButtons();
       renderNavInfo();
     }
@@ -598,6 +805,15 @@
 
     document.getElementById("prevBtn").addEventListener("click", () => go(-1));
     document.getElementById("nextBtn").addEventListener("click", () => go(1));
+
+    document.querySelectorAll(".view-toggle button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        setViewMode(btn.dataset.view);
+        document.querySelectorAll(".view-toggle button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        render();
+      });
+    });
 
     document.getElementById("copyToDirsBtn").addEventListener("click", async () => {
       const btn = document.getElementById("copyToDirsBtn");
