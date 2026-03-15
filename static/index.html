@@ -159,13 +159,35 @@
     main {
       flex: 1;
       display: flex;
+      flex-direction: row;
+      min-height: 0;
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
       flex-direction: column;
       align-items: center;
       padding: 1.5rem;
       gap: 1rem;
+      min-width: 0;
+    }
+    .sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      align-self: flex-start;
+      position: sticky;
+      top: 0;
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem 1rem 1.5rem;
+      background: var(--surface);
+      border-left: 1px solid rgba(255,255,255,0.06);
+      overflow-y: auto;
     }
     .preview-wrap {
-      max-width: 90vw;
+      max-width: 100%;
       max-height: 65vh;
       background: var(--surface);
       border-radius: 12px;
@@ -186,7 +208,7 @@
     }
     .thumb-slider-wrap {
       width: 100%;
-      max-width: 90vw;
+      max-width: 100%;
       overflow: hidden;
     }
     .thumb-slider {
@@ -221,25 +243,34 @@
       object-fit: cover;
       display: block;
     }
-    .thumb-status {
+    .thumb-status-dots {
       position: absolute;
       top: 4px;
       right: 4px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      border: 2px solid var(--bg);
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap;
+      max-width: 50px;
+      justify-content: flex-end;
     }
-    .thumb-status--album { background: var(--in-album); }
-    .thumb-status--discarded { background: var(--discard); }
-    .thumb-status--unviewed { background: #c9b336; }
+    .thumb-status-dots .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1.5px solid var(--bg);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+    .thumb-status-dots .dot.discarded { background: var(--discard); }
+    .thumb-status-dots .dot.unviewed { background: #c9b336; }
+    .thumb-status-dots .dot.album-us { background: #5a9b6e; }
+    .thumb-status-dots .dot.album-my_parents { background: #5b7cba; }
+    .thumb-status-dots .dot.album-wife_father { background: #9b6b9b; }
+    .thumb-status-dots .dot.album-wife_mother { background: #3a9b8e; }
     .albums {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
-      justify-content: center;
-      margin-top: 0.5rem;
     }
     .album-btn {
       padding: 0.5rem 1rem;
@@ -262,8 +293,8 @@
     .album-btn.discarded { background: var(--discard); border-color: var(--discard); color: #fff; }
     .nav-buttons {
       display: flex;
-      gap: 1rem;
-      align-items: center;
+      flex-direction: column;
+      gap: 0.5rem;
     }
     .nav-buttons button {
       padding: 0.6rem 1.2rem;
@@ -285,7 +316,8 @@
     .content-grid {
       display: none;
       width: 100%;
-      max-width: 90vw;
+      max-width: 100%;
+      align-self: stretch;
       gap: 0.75rem;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
@@ -307,7 +339,8 @@
     .content-list {
       display: none;
       width: 100%;
-      max-width: 90vw;
+      max-width: 100%;
+      align-self: stretch;
       flex-direction: column;
       gap: 0.25rem;
     }
@@ -336,14 +369,17 @@
     .content-list .list-item .list-info { flex: 1; min-width: 0; font-size: 0.9rem; color: var(--text); }
     .content-list .list-item .list-info .list-filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .content-list .list-item .list-dots { display: flex; gap: 4px; }
-    .content-list .list-item .list-dots .dot { width: 8px; height: 8px; border-radius: 50%; }
-    .content-list .list-item .list-dots .dot.album { background: var(--in-album); }
+    .content-list .list-item .list-dots .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .content-list .list-item .list-dots .dot.discarded { background: var(--discard); }
     .content-list .list-item .list-dots .dot.unviewed { background: #c9b336; }
-    .shortcuts {
-      margin-top: 1rem;
-      font-size: 0.8rem;
+    .content-list .list-item .list-dots .dot.album-us { background: #5a9b6e; }
+    .content-list .list-item .list-dots .dot.album-my_parents { background: #5b7cba; }
+    .content-list .list-item .list-dots .dot.album-wife_father { background: #9b6b9b; }
+    .content-list .list-item .list-dots .dot.album-wife_mother { background: #3a9b8e; }
+    .sidebar .shortcuts {
+      font-size: 0.75rem;
       color: var(--muted);
+      margin-top: auto;
     }
     .shortcuts kbd {
       background: var(--surface);
@@ -351,6 +387,31 @@
       border-radius: 4px;
       font-family: inherit;
     }
+    .status-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .status-legend .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .status-legend .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1.5px solid var(--bg);
+      flex-shrink: 0;
+    }
+    .status-legend .legend-dot.discarded { background: var(--discard); }
+    .status-legend .legend-dot.unviewed { background: #c9b336; }
+    .status-legend .legend-dot.album-us { background: #5a9b6e; }
+    .status-legend .legend-dot.album-my_parents { background: #5b7cba; }
+    .status-legend .legend-dot.album-wife_father { background: #9b6b9b; }
+    .status-legend .legend-dot.album-wife_mother { background: #3a9b8e; }
     .modal-overlay {
       display: none;
       position: fixed;
@@ -436,25 +497,30 @@
     </div>
   </div>
   <main>
-    <div class="content-preview" id="contentPreview">
-    <div class="preview-wrap">
-      <img id="preview" alt="Preview" style="display:none" />
-      <div class="placeholder" id="placeholder">Put your wedding photos in the <code>photos</code> folder, then run the app with that path.</div>
+    <div class="main-content">
+      <div class="content-preview" id="contentPreview">
+        <div class="preview-wrap">
+          <img id="preview" alt="Preview" style="display:none" />
+          <div class="placeholder" id="placeholder">Put your wedding photos in the <code>photos</code> folder, then run the app with that path.</div>
+        </div>
+        <div class="thumb-slider-wrap" id="thumbSliderWrap">
+          <div class="thumb-slider" id="thumbSlider" aria-label="Photo thumbnails"></div>
+        </div>
+      </div>
+      <div class="content-grid" id="contentGrid" aria-label="Grid view"></div>
+      <div class="content-list" id="contentList" aria-label="List view"></div>
     </div>
-    <div class="thumb-slider-wrap" id="thumbSliderWrap">
-      <div class="thumb-slider" id="thumbSlider" aria-label="Photo thumbnails"></div>
-    </div>
-    </div>
-    <div class="content-grid" id="contentGrid" aria-label="Grid view"></div>
-    <div class="content-list" id="contentList" aria-label="List view"></div>
-    <div class="albums" id="albumButtons"></div>
-    <div class="nav-buttons">
-      <button type="button" id="prevBtn">← Previous</button>
-      <button type="button" id="nextBtn">Next →</button>
-    </div>
-    <div class="shortcuts">
-      <strong>Shortcuts:</strong> <kbd>1</kbd>–<kbd>4</kbd> toggle albums · <kbd>D</kbd> discard · <kbd>←</kbd><kbd>→</kbd> or <kbd>K</kbd> prev / <kbd>J</kbd> next
-    </div>
+    <aside class="sidebar">
+      <div class="status-legend" id="statusLegend" aria-label="Status colors"></div>
+      <div class="albums" id="albumButtons"></div>
+      <div class="nav-buttons">
+        <button type="button" id="prevBtn">← Previous</button>
+        <button type="button" id="nextBtn">Next →</button>
+      </div>
+      <div class="shortcuts">
+        <strong>Shortcuts:</strong> <kbd>1</kbd>–<kbd>4</kbd> toggle albums · <kbd>D</kbd> discard · <kbd>←</kbd><kbd>→</kbd> or <kbd>K</kbd> prev / <kbd>J</kbd> next
+      </div>
+    </aside>
   </main>
   <div class="modal-overlay" id="clearModal" role="dialog" aria-labelledby="clearModalTitle" aria-modal="true">
     <div class="modal">
@@ -585,6 +651,18 @@
       renderTabs();
     }
 
+    function renderStatusLegend() {
+      const container = document.getElementById("statusLegend");
+      if (!container) return;
+      let html = "";
+      for (const a of albums) {
+        html += `<span class="legend-item"><span class="legend-dot album-${a.id}" aria-hidden="true"></span>${escapeHtml(a.label)}</span>`;
+      }
+      html += `<span class="legend-item"><span class="legend-dot discarded" aria-hidden="true"></span>Discarded</span>`;
+      html += `<span class="legend-item"><span class="legend-dot unviewed" aria-hidden="true"></span>Unviewed</span>`;
+      container.innerHTML = html;
+    }
+
     function renderTabs() {
       const container = document.getElementById("tabs");
       let html = `<button type="button" class="tab ${activeTab === "all" ? "active" : ""}" data-tab="all">All <span class="count">(${allPhotos.length})</span></button>`;
@@ -643,10 +721,18 @@
     }
 
     function getThumbStatus(filename) {
-      if ((selections.discarded || []).includes(filename)) return "discarded";
-      const inAnyAlbum = albums.some(a => (selections[a.id] || []).includes(filename));
-      if (inAnyAlbum) return "album";
-      return "unviewed";
+      const discarded = (selections.discarded || []).includes(filename);
+      const albumIds = albums.filter(a => (selections[a.id] || []).includes(filename)).map(a => a.id);
+      return { discarded, albumIds };
+    }
+
+    function renderStatusDots(filename) {
+      const { discarded, albumIds } = getThumbStatus(filename);
+      const parts = [];
+      if (discarded) parts.push({ class: "discarded" });
+      albumIds.forEach(id => parts.push({ class: "album-" + id }));
+      if (parts.length === 0) parts.push({ class: "unviewed" });
+      return parts;
     }
 
     function renderThumbSlider() {
@@ -663,7 +749,6 @@
         div.type = "button";
         div.className = "thumb" + (i === index ? " active" : "");
         div.setAttribute("aria-label", "Photo " + (i + 1) + " of " + photos.length);
-        const status = getThumbStatus(p.filename);
         const imgWrap = document.createElement("div");
         imgWrap.className = "thumb-img-wrap";
         const img = document.createElement("img");
@@ -672,10 +757,15 @@
         img.loading = "lazy";
         imgWrap.appendChild(img);
         div.appendChild(imgWrap);
-        const dot = document.createElement("span");
-        dot.className = "thumb-status thumb-status--" + status;
-        dot.setAttribute("aria-hidden", "true");
-        div.appendChild(dot);
+        const dotsWrap = document.createElement("div");
+        dotsWrap.className = "thumb-status-dots";
+        dotsWrap.setAttribute("aria-hidden", "true");
+        renderStatusDots(p.filename).forEach(({ class: c }) => {
+          const dot = document.createElement("span");
+          dot.className = "dot " + c;
+          dotsWrap.appendChild(dot);
+        });
+        div.appendChild(dotsWrap);
         div.addEventListener("click", () => {
           index = i;
           render();
@@ -701,7 +791,6 @@
       container.innerHTML = "";
       if (!photos.length) return;
       photos.forEach((p, i) => {
-        const status = getThumbStatus(p.filename);
         const div = document.createElement("button");
         div.type = "button";
         div.className = "grid-item" + (i === index ? " active" : "");
@@ -714,10 +803,15 @@
         img.loading = "lazy";
         imgWrap.appendChild(img);
         div.appendChild(imgWrap);
-        const dot = document.createElement("span");
-        dot.className = "thumb-status thumb-status--" + status;
-        dot.setAttribute("aria-hidden", "true");
-        div.appendChild(dot);
+        const dotsWrap = document.createElement("div");
+        dotsWrap.className = "thumb-status-dots";
+        dotsWrap.setAttribute("aria-hidden", "true");
+        renderStatusDots(p.filename).forEach(({ class: c }) => {
+          const dot = document.createElement("span");
+          dot.className = "dot " + c;
+          dotsWrap.appendChild(dot);
+        });
+        div.appendChild(dotsWrap);
         div.addEventListener("click", () => {
           index = i;
           render();
@@ -733,7 +827,6 @@
       container.innerHTML = "";
       if (!photos.length) return;
       photos.forEach((p, i) => {
-        const status = getThumbStatus(p.filename);
         const div = document.createElement("button");
         div.type = "button";
         div.className = "list-item" + (i === index ? " active" : "");
@@ -750,7 +843,12 @@
         info.innerHTML = '<span class="list-filename">' + escapeHtml(p.filename) + "</span>";
         const dots = document.createElement("div");
         dots.className = "list-dots";
-        dots.innerHTML = '<span class="dot ' + status + '" aria-hidden="true"></span>';
+        renderStatusDots(p.filename).forEach(({ class: c }) => {
+          const dot = document.createElement("span");
+          dot.className = "dot " + c;
+          dot.setAttribute("aria-hidden", "true");
+          dots.appendChild(dot);
+        });
         div.appendChild(thumb);
         div.appendChild(info);
         div.appendChild(dots);
@@ -953,6 +1051,7 @@
       }
       renderSourceSelect();
       await fetchAlbums();
+      renderStatusLegend();
       await fetchPhotos();
       await fetchSelections();
       renderTabs();

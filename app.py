@@ -4,6 +4,7 @@ Serves photos, supports sort by date/name, saves per-album JSON.
 """
 import json
 import os
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -85,6 +86,14 @@ def get_photo_date(filepath: Path) -> datetime:
     return datetime.fromtimestamp(os.path.getmtime(filepath))
 
 
+def _natural_sort_key(s: str):
+    """Key for natural/human sort: pic-1, pic-2, pic-10 not pic-1, pic-10, pic-2."""
+    return [
+        int(part) if part.isdigit() else part.lower()
+        for part in re.split(r"(\d+)", s)
+    ]
+
+
 def list_photos(sort_by: str, source: str = "") -> list[dict]:
     """List image files from the given source dir. sort_by: 'date' | 'name'."""
     allowed = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"}
@@ -110,7 +119,7 @@ def list_photos(sort_by: str, source: str = "") -> list[dict]:
         with_dates.sort(key=lambda x: x[0])
         photos = [p for _, p in with_dates]
     else:
-        photos.sort(key=lambda p: p["filename"].lower())
+        photos.sort(key=lambda p: _natural_sort_key(p["filename"]))
     return photos
 
 
