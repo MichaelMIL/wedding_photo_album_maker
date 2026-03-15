@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wedding photo album selector</title>
+  <style>
+    :root {
+      --bg: #1a1a1e;
+      --surface: #25252c;
+      --text: #e8e6e3;
+      --muted: #8b8685;
+      --accent: #c9a86c;
+      --accent-hover: #ddc48a;
+      --in-album: #5a9b6e;
+      --discard: #b85c5c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 0.75rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    h1 { margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--accent); }
+    .sort-toggle {
+      display: flex;
+      gap: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .sort-toggle button {
+      padding: 0.4rem 0.9rem;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .sort-toggle button.active {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .sort-toggle button:not(.active):hover { color: var(--text); }
+    .nav-info { color: var(--muted); font-size: 0.9rem; }
+    .source-select {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .source-select label { font-size: 0.85rem; color: var(--muted); }
+    .source-select select {
+      padding: 0.35rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-left: auto;
+    }
+    .header-actions .btn {
+      padding: 0.4rem 0.9rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .header-actions .btn-copy {
+      background: var(--in-album);
+      color: #fff;
+    }
+    .header-actions .btn-copy:hover { filter: brightness(1.1); }
+    .header-actions .btn-copy:disabled { opacity: 0.6; cursor: not-allowed; }
+    .header-actions .btn-clear {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .header-actions .btn-clear:hover { color: var(--text); border-color: var(--discard); color: var(--discard); }
+    .header-actions .copy-status {
+      font-size: 0.8rem;
+      color: var(--muted);
+      max-width: 280px;
+    }
+    .header-actions .copy-status.error { color: var(--discard); }
+    .header-actions .copy-status.success { color: var(--in-album); }
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 0 1.5rem;
+      background: var(--surface);
+      flex-wrap: wrap;
+    }
+    .tabs button {
+      padding: 0.6rem 1rem;
+      border: none;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-bottom: -1px;
+    }
+    .tabs button:hover { color: var(--text); }
+    .tabs button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tabs button .count { opacity: 0.8; font-size: 0.85em; }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+      gap: 1rem;
+    }
+    .preview-wrap {
+      max-width: 90vw;
+      max-height: 65vh;
+      background: var(--surface);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+    }
+    .preview-wrap img {
+      max-width: 100%;
+      max-height: 65vh;
+      object-fit: contain;
+    }
+    .preview-wrap .placeholder {
+      color: var(--muted);
+      padding: 2rem;
+    }
+    .thumb-slider-wrap {
+      width: 100%;
+      max-width: 90vw;
+      overflow: hidden;
+    }
+    .thumb-slider {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding: 0.5rem 0;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+    }
+    .thumb-slider::-webkit-scrollbar { height: 6px; }
+    .thumb-slider::-webkit-scrollbar-track { background: var(--surface); border-radius: 3px; }
+    .thumb-slider::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
+    .thumb {
+      flex-shrink: 0;
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      overflow: visible;
+      border: 2px solid transparent;
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color 0.15s;
+      position: relative;
+    }
+    .thumb .thumb-img-wrap { width: 100%; height: 100%; border-radius: 6px; overflow: hidden; }
+    .thumb:hover { border-color: rgba(255,255,255,0.3); }
+    .thumb.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .thumb-status {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--bg);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+    }
+    .thumb-status--album { background: var(--in-album); }
+    .thumb-status--discarded { background: var(--discard); }
+    .thumb-status--unviewed { background: #c9b336; }
+    .albums {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+    .album-btn {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 2px solid rgba(255,255,255,0.15);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.15s;
+    }
+    .album-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .album-btn.in-album {
+      background: var(--in-album);
+      border-color: var(--in-album);
+      color: #fff;
+    }
+    .album-btn.discard-btn { border-color: var(--discard); color: var(--discard); }
+    .album-btn.discard-btn:hover { background: rgba(184,92,92,0.2); }
+    .album-btn.discarded { background: var(--discard); border-color: var(--discard); color: #fff; }
+    .nav-buttons {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .nav-buttons button {
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .nav-buttons button:hover { background: rgba(255,255,255,0.08); }
+    .shortcuts {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .shortcuts kbd {
+      background: var(--surface);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 1.5rem;
+      min-width: 320px;
+      max-width: 90vw;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .modal h2 { margin: 0 0 1rem; font-size: 1.1rem; color: var(--text); }
+    .modal-checklist {
+      list-style: none;
+      margin: 0 0 1.25rem;
+      padding: 0;
+    }
+    .modal-checklist li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+    }
+    .modal-checklist input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+    .modal-checklist label { cursor: pointer; }
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+    .modal-actions button {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .modal-actions .btn-cancel {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .modal-actions .btn-cancel:hover { color: var(--text); }
+    .modal-actions .btn-clear {
+      background: var(--discard);
+      color: #fff;
+    }
+    .modal-actions .btn-clear:hover { filter: brightness(1.1); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Wedding album selector</h1>
+    <div class="source-select">
+      <label for="sourceSelect">Folder:</label>
+      <select id="sourceSelect" aria-label="Photo folder"></select>
+    </div>
+    <div class="sort-toggle">
+      <button type="button" data-sort="date" class="active">Sort by date</button>
+      <button type="button" data-sort="name">Sort by name</button>
+    </div>
+    <span class="nav-info" id="navInfo">—</span>
+    <div class="header-actions">
+      <button type="button" class="btn btn-copy" id="copyToDirsBtn">Copy to dirs</button>
+      <button type="button" class="btn btn-clear" id="clearSelectionBtn">Clear selection</button>
+      <span class="copy-status" id="copyStatus" aria-live="polite"></span>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs" aria-label="Albums"></nav>
+  <main>
+    <div class="preview-wrap">
+      <img id="preview" alt="Preview" style="display:none" />
+      <div class="placeholder" id="placeholder">Put your wedding photos in the <code>photos</code> folder, then run the app with that path.</div>
+    </div>
+    <div class="thumb-slider-wrap" id="thumbSliderWrap">
+      <div class="thumb-slider" id="thumbSlider" aria-label="Photo thumbnails"></div>
+    </div>
+    <div class="albums" id="albumButtons"></div>
+    <div class="nav-buttons">
+      <button type="button" id="prevBtn">← Previous</button>
+      <button type="button" id="nextBtn">Next →</button>
+    </div>
+    <div class="shortcuts">
+      <strong>Shortcuts:</strong> <kbd>1</kbd>–<kbd>4</kbd> toggle albums · <kbd>D</kbd> discard · <kbd>←</kbd><kbd>→</kbd> or <kbd>K</kbd> prev / <kbd>J</kbd> next
+    </div>
+  </main>
+  <div class="modal-overlay" id="clearModal" role="dialog" aria-labelledby="clearModalTitle" aria-modal="true">
+    <div class="modal">
+      <h2 id="clearModalTitle">Clear selection</h2>
+      <p style="margin:0 0 0.75rem; font-size:0.9rem; color: var(--muted);">Choose which selections to clear (saved JSON files):</p>
+      <ul class="modal-checklist" id="clearChecklist"></ul>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="clearModalCancel">Cancel</button>
+        <button type="button" class="btn-clear" id="clearModalConfirm">Clear selected</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const API = "";
+    let sources = [];
+    let currentSource = "";
+    let allPhotos = [];
+    let photos = [];
+    let index = 0;
+    let sortBy = "date";
+    let albums = [];
+    let selections = { discarded: [] };
+    let activeTab = "all";
+
+    async function fetchSources() {
+      const r = await fetch(API + "/api/sources");
+      sources = await r.json();
+    }
+
+    function renderSourceSelect() {
+      const sel = document.getElementById("sourceSelect");
+      sel.innerHTML = "";
+      for (const s of sources) {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = s.label;
+        if (s.id === currentSource) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+
+    async function fetchAlbums() {
+      const r = await fetch(API + "/api/albums");
+      albums = await r.json();
+    }
+
+    async function fetchPhotos() {
+      const params = new URLSearchParams({ sort: sortBy });
+      if (currentSource) params.set("source", currentSource);
+      const r = await fetch(API + "/api/photos?" + params);
+      allPhotos = await r.json();
+      updateFilteredPhotos();
+    }
+
+    function updateFilteredPhotos() {
+      if (activeTab === "all") {
+        photos = allPhotos.slice();
+      } else if (activeTab === "discarded") {
+        const names = selections.discarded || [];
+        const byName = Object.fromEntries(allPhotos.map(p => [p.filename, p]));
+        photos = names.map(f => byName[f]).filter(Boolean);
+      } else {
+        const names = selections[activeTab] || [];
+        const byName = Object.fromEntries(allPhotos.map(p => [p.filename, p]));
+        photos = names.map(f => byName[f]).filter(Boolean);
+      }
+      index = Math.min(index, Math.max(0, photos.length - 1));
+    }
+
+    async function fetchSelections() {
+      const url = currentSource ? API + "/api/selections?source=" + encodeURIComponent(currentSource) : API + "/api/selections";
+      const r = await fetch(url);
+      selections = await r.json();
+      updateFilteredPhotos();
+    }
+
+    async function saveSelections() {
+      const body = { ...selections, source: currentSource };
+      await fetch(API + "/api/selections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    }
+
+    function toggleAlbum(albumId) {
+      const filename = currentFilename();
+      if (!filename) return;
+      const list = selections[albumId] || [];
+      const i = list.indexOf(filename);
+      if (i === -1) list.push(filename);
+      else list.splice(i, 1);
+      selections[albumId] = list;
+      saveSelections();
+      updateFilteredPhotos();
+      render();
+      renderTabs();
+    }
+
+    function toggleDiscard() {
+      const filename = currentFilename();
+      if (!filename) return;
+      const list = selections.discarded || [];
+      const i = list.indexOf(filename);
+      if (i === -1) list.push(filename);
+      else list.splice(i, 1);
+      selections.discarded = list;
+      saveSelections();
+      updateFilteredPhotos();
+      render();
+      renderTabs();
+    }
+
+    function setTab(tabId) {
+      activeTab = tabId;
+      updateFilteredPhotos();
+      index = 0;
+      render();
+      renderTabs();
+    }
+
+    function renderTabs() {
+      const container = document.getElementById("tabs");
+      let html = `<button type="button" class="tab ${activeTab === "all" ? "active" : ""}" data-tab="all">All <span class="count">(${allPhotos.length})</span></button>`;
+      for (const a of albums) {
+        const count = (selections[a.id] || []).length;
+        html += `<button type="button" class="tab ${activeTab === a.id ? "active" : ""}" data-tab="${a.id}">${a.label} <span class="count">(${count})</span></button>`;
+      }
+      const discardedCount = (selections.discarded || []).length;
+      html += `<button type="button" class="tab ${activeTab === "discarded" ? "active" : ""}" data-tab="discarded">Discarded <span class="count">(${discardedCount})</span></button>`;
+      container.innerHTML = html;
+      container.querySelectorAll(".tab").forEach(btn => {
+        btn.addEventListener("click", () => setTab(btn.dataset.tab));
+      });
+    }
+
+    function currentFilename() {
+      return photos[index] ? photos[index].filename : null;
+    }
+
+    function renderAlbumButtons() {
+      const container = document.getElementById("albumButtons");
+      const filename = currentFilename();
+      let html = "";
+      for (const a of albums) {
+        const inAlbum = (selections[a.id] || []).includes(filename);
+        html += `<button type="button" class="album-btn ${inAlbum ? "in-album" : ""}" data-album="${a.id}" title="Shortcut: ${a.id === "us" ? "1" : a.id === "my_parents" ? "2" : a.id === "wife_father" ? "3" : "4"}">${a.label}</button>`;
+      }
+      const discarded = (selections.discarded || []).includes(filename);
+      html += `<button type="button" class="album-btn discard-btn ${discarded ? "discarded" : ""}" data-discard title="Shortcut: D">Discard</button>`;
+      container.innerHTML = html;
+      container.querySelectorAll("[data-album]").forEach(btn => {
+        btn.addEventListener("click", () => toggleAlbum(btn.dataset.album));
+      });
+      container.querySelector("[data-discard]").addEventListener("click", toggleDiscard);
+    }
+
+    function renderPreview() {
+      const img = document.getElementById("preview");
+      const placeholder = document.getElementById("placeholder");
+      if (!photos.length) {
+        img.style.display = "none";
+        placeholder.style.display = "block";
+        return;
+      }
+      const p = photos[index];
+      placeholder.style.display = "none";
+      img.style.display = "block";
+      img.src = API + "/api/photo/" + encodeURIComponent(p.path);
+      img.alt = p.filename;
+    }
+
+    function renderNavInfo() {
+      const el = document.getElementById("navInfo");
+      if (!photos.length) el.textContent = "No photos";
+      else el.textContent = `${index + 1} / ${photos.length} · ${photos[index].filename}`;
+    }
+
+    function getThumbStatus(filename) {
+      if ((selections.discarded || []).includes(filename)) return "discarded";
+      const inAnyAlbum = albums.some(a => (selections[a.id] || []).includes(filename));
+      if (inAnyAlbum) return "album";
+      return "unviewed";
+    }
+
+    function renderThumbSlider() {
+      const container = document.getElementById("thumbSlider");
+      const wrap = document.getElementById("thumbSliderWrap");
+      if (!photos.length) {
+        wrap.style.display = "none";
+        return;
+      }
+      wrap.style.display = "block";
+      container.innerHTML = "";
+      photos.forEach((p, i) => {
+        const div = document.createElement("button");
+        div.type = "button";
+        div.className = "thumb" + (i === index ? " active" : "");
+        div.setAttribute("aria-label", "Photo " + (i + 1) + " of " + photos.length);
+        const status = getThumbStatus(p.filename);
+        const imgWrap = document.createElement("div");
+        imgWrap.className = "thumb-img-wrap";
+        const img = document.createElement("img");
+        img.src = API + "/api/photo/" + encodeURIComponent(p.path);
+        img.alt = "";
+        img.loading = "lazy";
+        imgWrap.appendChild(img);
+        div.appendChild(imgWrap);
+        const dot = document.createElement("span");
+        dot.className = "thumb-status thumb-status--" + status;
+        dot.setAttribute("aria-hidden", "true");
+        div.appendChild(dot);
+        div.addEventListener("click", () => {
+          index = i;
+          render();
+        });
+        container.appendChild(div);
+      });
+      const activeEl = container.querySelector(".thumb.active");
+      if (activeEl) activeEl.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    }
+
+    function render() {
+      renderPreview();
+      renderThumbSlider();
+      renderAlbumButtons();
+      renderNavInfo();
+    }
+
+    function go(delta) {
+      if (!photos.length) return;
+      index = (index + delta + photos.length) % photos.length;
+      render();
+    }
+
+    document.querySelectorAll(".sort-toggle button").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        document.querySelector(".sort-toggle button.active").classList.remove("active");
+        btn.classList.add("active");
+        sortBy = btn.dataset.sort;
+        await fetchPhotos();
+        index = 0;
+        renderTabs();
+        render();
+      });
+    });
+
+    document.getElementById("prevBtn").addEventListener("click", () => go(-1));
+    document.getElementById("nextBtn").addEventListener("click", () => go(1));
+
+    document.getElementById("copyToDirsBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("copyToDirsBtn");
+      const status = document.getElementById("copyStatus");
+      btn.disabled = true;
+      status.textContent = "Copying…";
+      status.className = "copy-status";
+      try {
+        const r = await fetch(API + "/api/copy-to-dirs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: currentSource }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          status.textContent = data.error || "Copy failed";
+          status.className = "copy-status error";
+        } else {
+          const lines = ["Copied to " + data.output_dir];
+          if (data.copied) {
+            for (const [aid, count] of Object.entries(data.copied)) {
+              if (count > 0) lines.push(`album_${aid}: ${count} photo(s)`);
+            }
+          }
+          status.textContent = lines.join(" · ");
+          status.className = "copy-status success";
+        }
+      } catch (e) {
+        status.textContent = "Request failed: " + e.message;
+        status.className = "copy-status error";
+      }
+      btn.disabled = false;
+    });
+
+    const clearModal = document.getElementById("clearModal");
+    const clearChecklist = document.getElementById("clearChecklist");
+
+    function openClearModal() {
+      clearChecklist.innerHTML = "";
+      const items = [
+        ...albums.map(a => ({ key: a.id, label: a.label, count: (selections[a.id] || []).length })),
+        { key: "discarded", label: "Discarded", count: (selections.discarded || []).length },
+      ];
+      for (const { key, label, count } of items) {
+        const li = document.createElement("li");
+        const id = "clear-cb-" + key;
+        li.innerHTML = `<input type="checkbox" id="${id}" data-key="${key}" /> <label for="${id}">${label} (${count})</label>`;
+        clearChecklist.appendChild(li);
+      }
+      clearModal.classList.add("open");
+    }
+
+    function closeClearModal() {
+      clearModal.classList.remove("open");
+    }
+
+    document.getElementById("clearSelectionBtn").addEventListener("click", openClearModal);
+    document.getElementById("clearModalCancel").addEventListener("click", closeClearModal);
+    document.getElementById("clearModalConfirm").addEventListener("click", async () => {
+      const checked = Array.from(clearChecklist.querySelectorAll("input[type=checkbox]:checked")).map(cb => cb.dataset.key);
+      if (checked.length === 0) {
+        closeClearModal();
+        return;
+      }
+      for (const key of checked) {
+        selections[key] = [];
+      }
+      await fetch(API + "/api/selections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...selections, source: currentSource }),
+      });
+      await fetchSelections();
+      renderTabs();
+      render();
+      closeClearModal();
+    });
+
+    clearModal.addEventListener("click", (e) => { if (e.target === clearModal) closeClearModal(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && clearModal.classList.contains("open")) closeClearModal();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (document.activeElement && document.activeElement.matches("input, textarea")) return;
+      switch (e.key) {
+        case "ArrowLeft":
+        case "k":
+        case "K":
+          e.preventDefault();
+          go(-1);
+          break;
+        case "ArrowRight":
+        case "j":
+        case "J":
+          e.preventDefault();
+          go(1);
+          break;
+        case "1":
+          e.preventDefault();
+          if (albums[0]) toggleAlbum(albums[0].id);
+          break;
+        case "2":
+          e.preventDefault();
+          if (albums[1]) toggleAlbum(albums[1].id);
+          break;
+        case "3":
+          e.preventDefault();
+          if (albums[2]) toggleAlbum(albums[2].id);
+          break;
+        case "4":
+          e.preventDefault();
+          if (albums[3]) toggleAlbum(albums[3].id);
+          break;
+        case "d":
+        case "D":
+        case "Delete":
+          e.preventDefault();
+          toggleDiscard();
+          break;
+      }
+    });
+
+    document.getElementById("sourceSelect").addEventListener("change", async (e) => {
+      currentSource = e.target.value;
+      await fetchPhotos();
+      await fetchSelections();
+      index = 0;
+      renderTabs();
+      render();
+    });
+
+    (async function init() {
+      await fetchSources();
+      if (sources.length) {
+        currentSource = sources[0].id;
+      }
+      renderSourceSelect();
+      await fetchAlbums();
+      await fetchPhotos();
+      await fetchSelections();
+      renderTabs();
+      render();
+    })();
+  </script>
+</body>
+</html>
