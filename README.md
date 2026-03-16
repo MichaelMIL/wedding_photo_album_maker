@@ -2,6 +2,10 @@
 
 A simple tool to sort wedding photos into four albums (Us, My parents, Wife's father, Wife's mother), with optional discard. Photos can be in multiple albums.
 
+## Preview
+
+![UI preview](priview.png)
+
 ## Setup
 
 ```bash
@@ -30,7 +34,7 @@ Then open **http://127.0.0.1:8000** in your browser.
 
 - **Sort:** Use “Sort by date” (EXIF or file date) or “Sort by name”.
 - **Preview:** Current photo is shown large; use **← / →** or **K / J** to move.
-- **Assign to album:** Click a album button or press **1**, **2**, **3**, **4** (Us, My parents, Wife's father, Wife's mother). A photo can be in more than one album.
+- **Assign to album:** Click an album button or press its configured shortcut key (set via **Settings**). A photo can be in more than one album.
 - **Discard:** Click “Discard” or press **D** (or Delete). Discarded photos are listed in `selections/discarded.json`.
 
 Selections are saved automatically **per folder**. For the root folder they live in `selections/_root/`; for a subfolder like `ceremony` they live in `selections/ceremony/`:
@@ -44,3 +48,6 @@ Selections are saved automatically **per folder**. For the root folder they live
 Each file is a JSON array of image filenames (e.g. `["IMG_001.jpg", "IMG_002.jpg"]`).
 
 **Copy to dirs** writes one set of album folders per source, e.g. `output/_root/album_us/` and `output/ceremony/album_us/`.
+
+
+
