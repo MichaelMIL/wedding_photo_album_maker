@@ -241,6 +241,54 @@ def copy_to_dirs(source: str = "", output_base: Path | None = None) -> dict:
     return result
 
 
+def list_assigned_photos_all_sources(sort_by: str) -> dict:
+    """
+    Build a cross-source view containing only assigned/discarded photos.
+    Selections are keyed by photo path (source/filename) so entries are unique.
+    """
+    album_ids = [a["id"] for a in get_albums()]
+    sources = list_sources()
+    # If root exists but has no images, list_sources omits it; still harmless.
+    source_ids = [s["id"] for s in sources]
+    by_path = {}
+    selections_out = {aid: [] for aid in album_ids}
+    selections_out["discarded"] = []
+
+    for source in source_ids:
+        photos = list_photos(sort_by, source)
+        photos_by_name = {p["filename"]: p for p in photos}
+        selections = load_selections(source)
+
+        for aid in album_ids:
+            for fn in selections.get(aid, []):
+                p = photos_by_name.get(fn)
+                if not p:
+                    continue
+                path = p["path"]
+                if path not in by_path:
+                    by_path[path] = p
+                if path not in selections_out[aid]:
+                    selections_out[aid].append(path)
+
+        for fn in selections.get("discarded", []):
+            p = photos_by_name.get(fn)
+            if not p:
+                continue
+            path = p["path"]
+            if path not in by_path:
+                by_path[path] = p
+            if path not in selections_out["discarded"]:
+                selections_out["discarded"].append(path)
+
+    photos_out = list(by_path.values())
+    # Keep same sort semantics for the combined list.
+    if sort_by == "date":
+        photos_out.sort(key=lambda p: p["mtime"])
+    else:
+        photos_out.sort(key=lambda p: _natural_sort_key(p["path"]))
+    return {"photos": photos_out, "selections": selections_out}
+
+
 @app.route("/api/albums")
 def albums():
     return jsonify(get_albums())
@@ -275,6 +323,15 @@ def photos():
     if sort_by not in ("date", "name"):
         sort_by = "date"
     return jsonify(list_photos(sort_by, source))
+
+
+@app.route("/api/assigned-all")
+def api_assigned_all():
+    """Return assigned/discarded photos across all sources, grouped by album."""
+    sort_by = request.args.get("sort", "date")
+    if sort_by not in ("date", "name"):
+        sort_by = "date"
+    return jsonify(list_assigned_photos_all_sources(sort_by))
 
 
 @app.route("/api/photo/<path:path>")

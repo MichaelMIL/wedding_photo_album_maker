@@ -2,3 +2,5 @@
 output/
 photos/
 selections/
+config/
+*.zip

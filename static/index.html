@@ -71,6 +71,15 @@
       font-size: 0.9rem;
       cursor: pointer;
     }
+    .global-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      user-select: none;
+    }
+    .global-toggle input { accent-color: var(--accent); }
     .header-actions {
       display: flex;
       align-items: center;
@@ -531,6 +540,10 @@
       <label for="sourceSelect">Folder:</label>
       <select id="sourceSelect" aria-label="Photo folder"></select>
     </div>
+    <label class="global-toggle" for="globalAssignedToggle">
+      <input type="checkbox" id="globalAssignedToggle" />
+      Assigned from all folders
+    </label>
     <div class="sort-toggle">
       <button type="button" data-sort="date" class="active">Sort by date</button>
       <button type="button" data-sort="name">Sort by name</button>
@@ -607,6 +620,8 @@
     const API = "";
     let sources = [];
     let currentSource = "";
+    let globalAssignedMode = false;
+    let globalAssignedSelections = null;
     let allPhotos = [];
     let photos = [];
     let index = 0;
@@ -647,6 +662,15 @@
     }
 
     async function fetchPhotos() {
+      if (globalAssignedMode) {
+        const params = new URLSearchParams({ sort: sortBy });
+        const rAll = await fetch(API + "/api/assigned-all?" + params);
+        const dataAll = await rAll.json();
+        allPhotos = dataAll.photos || [];
+        globalAssignedSelections = dataAll.selections || {};
+        updateFilteredPhotos();
+        return;
+      }
       const params = new URLSearchParams({ sort: sortBy });
       if (currentSource) params.set("source", currentSource);
       const r = await fetch(API + "/api/photos?" + params);
@@ -654,22 +678,32 @@
       updateFilteredPhotos();
     }
 
+    function photoKey(photo) {
+      return globalAssignedMode ? photo.path : photo.filename;
+    }
+
     function updateFilteredPhotos() {
+      const keyOf = photoKey;
       if (activeTab === "all") {
         photos = allPhotos.slice();
       } else if (activeTab === "discarded") {
         const names = selections.discarded || [];
-        const byName = Object.fromEntries(allPhotos.map(p => [p.filename, p]));
+        const byName = Object.fromEntries(allPhotos.map(p => [keyOf(p), p]));
         photos = names.map(f => byName[f]).filter(Boolean);
       } else {
         const names = selections[activeTab] || [];
-        const byName = Object.fromEntries(allPhotos.map(p => [p.filename, p]));
+        const byName = Object.fromEntries(allPhotos.map(p => [keyOf(p), p]));
         photos = names.map(f => byName[f]).filter(Boolean);
       }
       index = Math.min(index, Math.max(0, photos.length - 1));
     }
 
     async function fetchSelections() {
+      if (globalAssignedMode) {
+        selections = globalAssignedSelections || { discarded: [] };
+        updateFilteredPhotos();
+        return;
+      }
       const url = currentSource ? API + "/api/selections?source=" + encodeURIComponent(currentSource) : API + "/api/selections";
       const r = await fetch(url);
       selections = await r.json();
@@ -686,6 +720,7 @@
     }
 
     function toggleAlbum(albumId) {
+      if (globalAssignedMode) return;
       const filename = currentFilename();
       if (!filename) return;
       const list = selections[albumId] || [];
@@ -700,6 +735,7 @@
     }
 
     function toggleDiscard() {
+      if (globalAssignedMode) return;
       const filename = currentFilename();
       if (!filename) return;
       const list = selections.discarded || [];
@@ -755,7 +791,7 @@
     }
 
     function currentFilename() {
-      return photos[index] ? photos[index].filename : null;
+      return photos[index] ? photoKey(photos[index]) : null;
     }
 
     function renderAlbumButtons() {
@@ -775,6 +811,9 @@
         btn.addEventListener("click", () => toggleAlbum(btn.dataset.album));
       });
       container.querySelector("[data-discard]").addEventListener("click", toggleDiscard);
+      if (globalAssignedMode) {
+        container.querySelectorAll("button").forEach(b => b.disabled = true);
+      }
     }
 
     function renderPreview() {
@@ -795,7 +834,7 @@
     function renderNavInfo() {
       const el = document.getElementById("navInfo");
       if (!photos.length) el.textContent = "No photos";
-      else el.textContent = `${index + 1} / ${photos.length} · ${photos[index].filename}`;
+      else el.textContent = globalAssignedMode ? `${index + 1} / ${photos.length} · ${photos[index].path}` : `${index + 1} / ${photos.length} · ${photos[index].filename}`;
     }
 
     function getThumbStatus(filename) {
@@ -838,7 +877,7 @@
         const dotsWrap = document.createElement("div");
         dotsWrap.className = "thumb-status-dots";
         dotsWrap.setAttribute("aria-hidden", "true");
-        renderStatusDots(p.filename).forEach(({ class: c }) => {
+        renderStatusDots(photoKey(p)).forEach(({ class: c }) => {
           const dot = document.createElement("span");
           dot.className = "dot " + c;
           if (c.startsWith("album-")) {
@@ -887,7 +926,7 @@
         const dotsWrap = document.createElement("div");
         dotsWrap.className = "thumb-status-dots";
         dotsWrap.setAttribute("aria-hidden", "true");
-        renderStatusDots(p.filename).forEach(({ class: c }) => {
+        renderStatusDots(photoKey(p)).forEach(({ class: c }) => {
           const dot = document.createElement("span");
           dot.className = "dot " + c;
           if (c.startsWith("album-")) {
@@ -927,7 +966,7 @@
         info.innerHTML = '<span class="list-filename">' + escapeHtml(p.filename) + "</span>";
         const dots = document.createElement("div");
         dots.className = "list-dots";
-        renderStatusDots(p.filename).forEach(({ class: c }) => {
+        renderStatusDots(photoKey(p)).forEach(({ class: c }) => {
           const dot = document.createElement("span");
           dot.className = "dot " + c;
           dot.setAttribute("aria-hidden", "true");
@@ -1001,6 +1040,7 @@
     });
 
     document.getElementById("copyToDirsBtn").addEventListener("click", async () => {
+      if (globalAssignedMode) return;
       const btn = document.getElementById("copyToDirsBtn");
       const status = document.getElementById("copyStatus");
       btn.disabled = true;
@@ -1058,6 +1098,7 @@
     document.getElementById("clearSelectionBtn").addEventListener("click", openClearModal);
     document.getElementById("clearModalCancel").addEventListener("click", closeClearModal);
     document.getElementById("clearModalConfirm").addEventListener("click", async () => {
+      if (globalAssignedMode) return;
       const checked = Array.from(clearChecklist.querySelectorAll("input[type=checkbox]:checked")).map(cb => cb.dataset.key);
       if (checked.length === 0) {
         closeClearModal();
@@ -1191,7 +1232,25 @@
     });
 
     document.getElementById("sourceSelect").addEventListener("change", async (e) => {
+      if (globalAssignedMode) return;
       currentSource = e.target.value;
+      await fetchPhotos();
+      await fetchSelections();
+      index = 0;
+      renderTabs();
+      render();
+    });
+
+    document.getElementById("globalAssignedToggle").addEventListener("change", async (e) => {
+      globalAssignedMode = !!e.target.checked;
+      document.getElementById("sourceSelect").disabled = globalAssignedMode;
+      if (globalAssignedMode) {
+        document.getElementById("copyToDirsBtn").disabled = true;
+        document.getElementById("clearSelectionBtn").disabled = true;
+      } else {
+        document.getElementById("copyToDirsBtn").disabled = false;
+        document.getElementById("clearSelectionBtn").disabled = false;
+      }
       await fetchPhotos();
       await fetchSelections();
       index = 0;
