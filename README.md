@@ -1,10 +1,21 @@
 # Wedding photo album selector
 
-A simple tool to sort wedding photos into four albums (Us, My parents, Wife's father, Wife's mother), with optional discard. Photos can be in multiple albums.
+A local web tool to triage photos into custom albums, preview quickly, and export selected files.
 
 ## Preview
 
 ![UI preview](priview.png)
+
+## Features
+
+- Multiple source folders (root + subfolders under `photos/`)
+- Per-source selections saved as JSON
+- Album assignment + discard, with keyboard shortcuts
+- Configurable albums (name, color, key) from **Settings**
+- Status dots in slider/grid/list (can show multiple albums)
+- View modes per tab: **Preview**, **Grid**, **List**
+- Global toggle: **Assigned from all folders** (cross-source view)
+- Copy selected photos into output directories
 
 ## Setup
 
@@ -16,38 +27,90 @@ pip install -r requirements.txt
 
 ## Run
 
-**Default:** uses a `photos` folder next to the app. You can put all images in `photos/` or use **subfolders** (e.g. `photos/ceremony/`, `photos/reception/`). The app lists "Root" (images directly in `photos`) and each subfolder that contains images; use the **Folder** dropdown to switch between them.
+Default (uses local `photos/`):
 
 ```bash
 python app.py
 ```
 
-**Custom folder:**
+Custom photos path:
 
 ```bash
 python app.py /path/to/your/wedding/photos
 ```
 
-Then open **http://127.0.0.1:8000** in your browser.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000).
+
+## Folder structure
+
+The app works with photos in root and/or subfolders:
+
+```text
+photos/
+  IMG_0001.jpg
+  Highlights/
+    IMG_1001.jpg
+  Family/
+    IMG_2001.jpg
+```
+
+Use the **Folder** dropdown to switch source.
 
 ## Usage
 
-- **Sort:** Use “Sort by date” (EXIF or file date) or “Sort by name”.
-- **Preview:** Current photo is shown large; use **← / →** or **K / J** to move.
-- **Assign to album:** Click an album button or press its configured shortcut key (set via **Settings**). A photo can be in more than one album.
-- **Discard:** Click “Discard” or press **D** (or Delete). Discarded photos are listed in `selections/discarded.json`.
+- **Sort**: Date (EXIF fallback mtime) or Name (natural sort)
+- **Assign**: Click album button or use configured key
+- **Discard**: `D` / `Delete`
+- **Navigate**: `←` / `→` or `K` / `J`
+- **Tabs**: `All`, album tabs, `Discarded`
+- **View**: `Preview`, `Grid`, `List` (remembered per tab)
+- **Assigned from all folders** toggle:
+  - Shows assigned/discarded photos across all source folders
+  - Tabs become cross-source views
+  - Source selector and editing actions are disabled (view-only)
 
-Selections are saved automatically **per folder**. For the root folder they live in `selections/_root/`; for a subfolder like `ceremony` they live in `selections/ceremony/`:
+## Album settings
 
-- `selections/_root/album_us.json` (or `selections/ceremony/album_us.json`, etc.)
-- `selections/_root/album_my_parents.json`
-- `selections/_root/album_wife_father.json`
-- `selections/_root/album_wife_mother.json`
-- `selections/_root/discarded.json`
+Open **Settings** (top-right) to customize albums:
 
-Each file is a JSON array of image filenames (e.g. `["IMG_001.jpg", "IMG_002.jpg"]`).
+- Label (display name)
+- Color (used in buttons/legend/status dots)
+- Key (shortcut)
+- Add/remove albums
 
-**Copy to dirs** writes one set of album folders per source, e.g. `output/_root/album_us/` and `output/ceremony/album_us/`.
+Config is stored in:
 
+- `config/albums.json`
 
+## Selection files
 
+Selections are saved per source folder:
+
+- Root source: `selections/_root/`
+- Subfolder source (example `Highlights`): `selections/Highlights/`
+
+Each source contains:
+
+- `album_<album_id>.json` for each album
+- `discarded.json`
+
+Each JSON file is an array of filenames.
+
+## Export selected photos
+
+Click **Copy to dirs** to export selections.
+
+Output is grouped by source and album, e.g.:
+
+```text
+output/
+  _root/
+    album_us/
+  Highlights/
+    album_my_parents/
+```
+
+## Notes
+
+- Supported formats: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.heic`
+- This is a local Flask app intended for personal workflows
